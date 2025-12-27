@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import {
   AuthResponseDto,
@@ -25,6 +25,10 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({
+    type: RegisterDto,
+    description: 'User registration data',
+  })
   @ApiResponse({
     status: 201,
     description: 'User registered successfully',
@@ -59,6 +63,10 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user with credentials' })
+  @ApiBody({
+    type: LoginDto,
+    description: 'User login credentials',
+  })
   @ApiResponse({
     status: 200,
     description: 'User logged in successfully',
@@ -78,6 +86,10 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({
+    type: RefreshTokenDto,
+    description: 'Refresh token data',
+  })
   @ApiResponse({
     status: 200,
     description: 'Token refreshed successfully',
@@ -97,6 +109,10 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout user by revoking refresh token' })
+  @ApiBody({
+    type: RefreshTokenDto,
+    description: 'Refresh token to revoke',
+  })
   @ApiResponse({
     status: 200,
     description: 'User logged out successfully',

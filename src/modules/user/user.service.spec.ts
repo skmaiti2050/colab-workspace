@@ -94,12 +94,7 @@ describe('UserService', () => {
         name: 'Test User',
       };
 
-      const queryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getOne: jest.fn().mockResolvedValue(mockUser),
-      };
-      repository.createQueryBuilder.mockReturnValue(queryBuilder as any);
+      repository.findOne.mockResolvedValue(mockUser);
 
       await expect(service.create(createUserDto)).rejects.toThrow(ConflictException);
     });

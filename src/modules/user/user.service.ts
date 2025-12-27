@@ -55,16 +55,10 @@ export class UserService {
   /**
    * Check if email is unique
    */
-  async isEmailUnique(email: string, excludeUserId?: string): Promise<boolean> {
-    const query = this.userRepository
-      .createQueryBuilder('user')
-      .where('LOWER(user.email) = LOWER(:email)', { email });
-
-    if (excludeUserId) {
-      query.andWhere('user.id != :excludeUserId', { excludeUserId });
-    }
-
-    const existingUser = await query.getOne();
+  async isEmailUnique(email: string): Promise<boolean> {
+    const existingUser = await this.userRepository.findOne({
+      where: { email: email.toLowerCase() },
+    });
     return !existingUser;
   }
 }

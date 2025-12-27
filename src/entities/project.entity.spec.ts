@@ -1,5 +1,5 @@
 import { validate } from 'class-validator';
-import { CollaborationEvent, Project, ProjectFile, ProjectMetadata } from './index';
+import { Project, ProjectMetadata } from './index';
 
 describe('Project Entity', () => {
   describe('validation', () => {
@@ -9,9 +9,7 @@ describe('Project Entity', () => {
       project.name = 'Test Project';
       project.description = 'A test project';
       project.createdBy = '713df652-8eeb-4a41-9ec9-4fe03942b77b';
-      project.files = [];
       project.metadata = {};
-      project.collaborationHistory = [];
 
       const errors = await validate(project);
       expect(errors).toHaveLength(0);
@@ -51,23 +49,7 @@ describe('Project Entity', () => {
     });
   });
 
-  describe('JSONB fields', () => {
-    it('should handle files array correctly', () => {
-      const project = new Project();
-      const file: ProjectFile = {
-        path: '/src/main.ts',
-        content: 'console.log("Hello World");',
-        mimeType: 'text/typescript',
-        lastModified: new Date('2025-01-01T00:00:00.000Z'),
-        modifiedBy: '713df652-8eeb-4a41-9ec9-4fe03942b77b',
-      };
-
-      project.files = [file];
-      expect(project.files).toHaveLength(1);
-      expect(project.files[0].path).toBe('/src/main.ts');
-      expect(project.files[0].mimeType).toBe('text/typescript');
-    });
-
+  describe('metadata field', () => {
     it('should handle metadata object correctly', () => {
       const project = new Project();
       const metadata: ProjectMetadata = {
@@ -90,20 +72,26 @@ describe('Project Entity', () => {
       expect(project.metadata.tags).toEqual(['backend', 'api']);
     });
 
-    it('should handle collaboration history correctly', () => {
+    it('should handle empty metadata object', () => {
       const project = new Project();
-      const event: CollaborationEvent = {
-        userId: '713df652-8eeb-4a41-9ec9-4fe03942b77b',
-        action: 'create',
-        timestamp: new Date('2025-01-01T00:00:00.000Z'),
-        changes: { type: 'file_created', path: '/src/main.ts' },
-        filePath: '/src/main.ts',
+      project.metadata = {};
+
+      expect(project.metadata).toEqual({});
+    });
+
+    it('should handle custom metadata fields', () => {
+      const project = new Project();
+      project.metadata = {
+        customField: 'customValue',
+        anotherField: 123,
+        nestedObject: {
+          key: 'value',
+        },
       };
 
-      project.collaborationHistory = [event];
-      expect(project.collaborationHistory).toHaveLength(1);
-      expect(project.collaborationHistory[0].action).toBe('create');
-      expect(project.collaborationHistory[0].filePath).toBe('/src/main.ts');
+      expect(project.metadata.customField).toBe('customValue');
+      expect(project.metadata.anotherField).toBe(123);
+      expect(project.metadata.nestedObject.key).toBe('value');
     });
   });
 });

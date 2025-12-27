@@ -6,19 +6,14 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { CollaborationEvent } from './collaboration-event.entity';
+import { ProjectFile } from './project-file.entity';
 import { User } from './user.entity';
 import { Workspace } from './workspace.entity';
-
-export interface ProjectFile {
-  path: string;
-  content: string;
-  mimeType: string;
-  lastModified: Date;
-  modifiedBy: string;
-}
 
 export interface ProjectMetadata {
   language?: string;
@@ -26,14 +21,6 @@ export interface ProjectMetadata {
   dependencies?: Record<string, string>;
   tags?: string[];
   [key: string]: any;
-}
-
-export interface CollaborationEvent {
-  userId: string;
-  action: 'create' | 'update' | 'delete' | 'rename';
-  timestamp: Date;
-  changes: any;
-  filePath?: string;
 }
 
 @Entity('projects')
@@ -73,23 +60,12 @@ export class Project {
   })
   createdBy!: string;
 
-  @Column({
-    type: 'jsonb',
-    default: [],
-  })
-  files!: ProjectFile[];
-
+  // Keep metadata as JSONB (no changes)
   @Column({
     type: 'jsonb',
     default: {},
   })
   metadata!: ProjectMetadata;
-
-  @Column({
-    type: 'jsonb',
-    default: [],
-  })
-  collaborationHistory!: CollaborationEvent[];
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -112,4 +88,11 @@ export class Project {
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'createdBy' })
   creator!: User;
+
+  // Add relations to new entities
+  @OneToMany(() => ProjectFile, (file) => file.project, { cascade: true })
+  projectFiles!: ProjectFile[];
+
+  @OneToMany(() => CollaborationEvent, (event) => event.project, { cascade: true })
+  events!: CollaborationEvent[];
 }

@@ -9,7 +9,9 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import configuration, { validateEnvironment } from './config/configuration';
 import { getDatabaseConfig } from './config/database.config';
+import { ProjectModule } from './modules/project/project.module';
 import { UserModule } from './modules/user/user.module';
+import { WorkspaceModule } from './modules/workspace/workspace.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { UserModule } from './modules/user/user.module';
     }),
     AuthModule,
     UserModule,
+    WorkspaceModule,
+    ProjectModule,
   ],
   controllers: [AppController],
   providers: [

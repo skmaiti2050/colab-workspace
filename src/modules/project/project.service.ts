@@ -1,18 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AddFileDto } from '../../dto/add-file.dto';
 import { CreateProjectDto } from '../../dto/create-project.dto';
 import { UpdateProjectDto } from '../../dto/update-project.dto';
-import { CollaborationEvent, Project, ProjectFile } from '../../entities/project.entity';
-import { UserRole } from '../../entities/workspace-member.entity';
+import { Project } from '../../entities';
+import { ProjectFile } from '../../entities/project-file.entity';
 import { WorkspaceService } from '../workspace/workspace.service';
+import { CollaborationEventService } from './collaboration-event.service';
+import { ProjectFileService } from './project-file.service';
 
+/**
+ * Service responsible for managing projects within workspaces
+ */
 @Injectable()
 export class ProjectService {
   constructor(
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly workspaceService: WorkspaceService,
+    private readonly fileService: ProjectFileService,
+    private readonly eventService: CollaborationEventService,
   ) {}
 
   /**
@@ -31,17 +39,20 @@ export class ProjectService {
       description: createProjectDto.description,
       createdBy: userId,
       metadata: createProjectDto.metadata || {},
-      files: [],
-      collaborationHistory: [],
     });
 
     const savedProject = await this.projectRepository.save(project);
 
-    await this.addCollaborationEvent(savedProject.id, {
+    await this.eventService.addEvent({
+      projectId: savedProject.id,
       userId,
       action: 'create',
-      timestamp: new Date(),
-      changes: { projectName: createProjectDto.name },
+      resourceType: 'project',
+      changes: {
+        projectName: createProjectDto.name,
+        description: createProjectDto.description,
+        metadata: createProjectDto.metadata,
+      },
     });
 
     return savedProject;
@@ -99,10 +110,11 @@ export class ProjectService {
     Object.assign(project, updateProjectDto);
     const updatedProject = await this.projectRepository.save(project);
 
-    await this.addCollaborationEvent(projectId, {
+    await this.eventService.addEvent({
+      projectId,
       userId,
       action: 'update',
-      timestamp: new Date(),
+      resourceType: 'project',
       changes: {
         old: oldData,
         new: updateProjectDto,
@@ -120,6 +132,17 @@ export class ProjectService {
 
     await this.workspaceService.checkProjectModifyPermission(project.workspaceId, userId);
 
+    await this.eventService.addEvent({
+      projectId,
+      userId,
+      action: 'delete',
+      resourceType: 'project',
+      changes: {
+        projectName: project.name,
+        description: project.description,
+      },
+    });
+
     const result = await this.projectRepository.delete(projectId);
     if (result.affected === 0) {
       throw new NotFoundException(`Project with ID ${projectId} not found`);
@@ -127,90 +150,81 @@ export class ProjectService {
   }
 
   /**
-   * Add file to project
+   * Add file to project using ProjectFileService
    */
-  async addFile(
-    projectId: string,
-    file: Omit<ProjectFile, 'lastModified' | 'modifiedBy'>,
-    userId: string,
-  ): Promise<Project> {
-    const project = await this.getProject(projectId, userId);
+  async addFile(projectId: string, fileData: AddFileDto, userId: string): Promise<Project> {
+    await this.checkProjectModifyPermission(projectId, userId);
 
-    await this.workspaceService.checkProjectModifyPermission(project.workspaceId, userId);
+    const file = await this.fileService.addFile(projectId, fileData, userId);
 
-    const existingFileIndex = project.files.findIndex((f) => f.path === file.path);
-
-    const newFile: ProjectFile = {
-      ...file,
-      lastModified: new Date(),
-      modifiedBy: userId,
-    };
-
-    if (existingFileIndex >= 0) {
-      project.files[existingFileIndex] = newFile;
-    } else {
-      project.files.push(newFile);
-    }
-
-    const updatedProject = await this.projectRepository.save(project);
-
-    await this.addCollaborationEvent(projectId, {
+    await this.eventService.addEvent({
+      projectId,
       userId,
-      action: existingFileIndex >= 0 ? 'update' : 'create',
-      timestamp: new Date(),
-      changes: { file: newFile },
-      filePath: file.path,
+      action: 'create',
+      resourceType: 'file',
+      resourceId: file.filePath,
+      changes: {
+        file: {
+          path: file.filePath,
+          mimeType: file.mimeType,
+          sizeBytes: file.sizeBytes,
+        },
+      },
     });
 
-    return updatedProject;
+    return this.getProject(projectId, userId);
   }
 
   /**
-   * Remove file from project
+   * Remove file from project using ProjectFileService
    */
   async removeFile(projectId: string, filePath: string, userId: string): Promise<Project> {
-    const project = await this.getProject(projectId, userId);
+    await this.checkProjectModifyPermission(projectId, userId);
 
-    await this.workspaceService.checkProjectModifyPermission(project.workspaceId, userId);
-
-    const fileIndex = project.files.findIndex((f) => f.path === filePath);
-    if (fileIndex === -1) {
-      throw new NotFoundException(`File ${filePath} not found in project`);
+    const existingFile = await this.fileService.getFile(projectId, filePath);
+    if (!existingFile) {
+      throw new NotFoundException(`File with path '${filePath}' not found in project ${projectId}`);
     }
 
-    const removedFile = project.files[fileIndex];
-    project.files.splice(fileIndex, 1);
+    await this.fileService.deleteFile(projectId, filePath);
 
-    const updatedProject = await this.projectRepository.save(project);
-
-    await this.addCollaborationEvent(projectId, {
+    await this.eventService.addEvent({
+      projectId,
       userId,
       action: 'delete',
-      timestamp: new Date(),
-      changes: { removedFile },
-      filePath,
+      resourceType: 'file',
+      resourceId: filePath,
+      changes: {
+        file: {
+          path: filePath,
+          mimeType: existingFile.mimeType,
+          sizeBytes: existingFile.sizeBytes,
+        },
+      },
     });
 
-    return updatedProject;
+    return this.getProject(projectId, userId);
   }
 
   /**
-   * Get project files
+   * Get project files using ProjectFileService
    */
   async getProjectFiles(projectId: string, userId: string): Promise<ProjectFile[]> {
-    const project = await this.getProject(projectId, userId);
-    return project.files;
+    await this.checkProjectViewPermission(projectId, userId);
+
+    return this.fileService.getProjectFiles(projectId);
   }
 
   /**
-   * Get specific file content
+   * Get specific file content using ProjectFileService
    */
   async getFile(projectId: string, filePath: string, userId: string): Promise<ProjectFile> {
-    const project = await this.getProject(projectId, userId);
+    await this.checkProjectViewPermission(projectId, userId);
 
-    const file = project.files.find((f) => f.path === filePath);
+    const file = await this.fileService.getFile(projectId, filePath);
+
     if (!file) {
-      throw new NotFoundException(`File ${filePath} not found in project`);
+      throw new NotFoundException(`File with path '${filePath}' not found in project ${projectId}`);
     }
 
     return file;
@@ -233,10 +247,11 @@ export class ProjectService {
 
     const updatedProject = await this.projectRepository.save(project);
 
-    await this.addCollaborationEvent(projectId, {
+    await this.eventService.addEvent({
+      projectId,
       userId,
       action: 'update',
-      timestamp: new Date(),
+      resourceType: 'metadata',
       changes: {
         metadataUpdate: {
           old: oldMetadata,
@@ -249,25 +264,40 @@ export class ProjectService {
   }
 
   /**
-   * Get collaboration history for a project
+   * Get collaboration history for a project using CollaborationEventService
    */
-  async getCollaborationHistory(projectId: string, userId: string): Promise<CollaborationEvent[]> {
-    const project = await this.getProject(projectId, userId);
-    return project.collaborationHistory;
+  async getCollaborationHistory(
+    projectId: string,
+    userId: string,
+    page?: number,
+    limit?: number,
+  ): Promise<any> {
+    await this.checkProjectViewPermission(projectId, userId);
+
+    const historyResponse = await this.eventService.getProjectHistory(projectId, page, limit);
+
+    return {
+      history: historyResponse.events,
+      total: historyResponse.total,
+      page: historyResponse.page,
+      limit: historyResponse.limit,
+      totalPages: historyResponse.totalPages,
+    };
   }
 
   /**
-   * Add collaboration event to project history
+   * Get user activity across all projects using CollaborationEventService
    */
-  private async addCollaborationEvent(projectId: string, event: CollaborationEvent): Promise<void> {
-    await this.projectRepository
-      .createQueryBuilder()
-      .update(Project)
-      .set({
-        collaborationHistory: () => `collaboration_history || '[${JSON.stringify(event)}]'::jsonb`,
-      })
-      .where('id = :projectId', { projectId })
-      .execute();
+  async getUserActivity(userId: string, page?: number, limit?: number): Promise<any> {
+    const activityResponse = await this.eventService.getUserActivity(userId, page, limit);
+
+    return {
+      activity: activityResponse.events,
+      total: activityResponse.total,
+      page: activityResponse.page,
+      limit: activityResponse.limit,
+      totalPages: activityResponse.totalPages,
+    };
   }
 
   /**
@@ -298,20 +328,5 @@ export class ProjectService {
     }
 
     await this.workspaceService.checkProjectModifyPermission(project.workspaceId, userId);
-  }
-
-  /**
-   * Get user's role in project workspace
-   */
-  async getUserProjectRole(projectId: string, userId: string): Promise<UserRole | null> {
-    const project = await this.projectRepository.findOne({
-      where: { id: projectId },
-    });
-
-    if (!project) {
-      return null;
-    }
-
-    return this.workspaceService.getUserRole(project.workspaceId, userId);
   }
 }
