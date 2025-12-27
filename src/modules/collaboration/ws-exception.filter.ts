@@ -1,15 +1,24 @@
-import { ArgumentsHost, Catch, Logger } from '@nestjs/common';
+import { ArgumentsHost, Catch, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BaseWsExceptionFilter, WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
 @Catch()
+@Injectable()
 export class WsExceptionFilter extends BaseWsExceptionFilter {
   private readonly logger = new Logger(WsExceptionFilter.name);
+
+  constructor(private readonly configService: ConfigService) {
+    super();
+  }
 
   catch(exception: unknown, host: ArgumentsHost) {
     const client = host.switchToWs().getClient<Socket>();
 
-    this.logger.error('WebSocket exception occurred', exception);
+    // Only log errors in non-test environments to reduce noise during testing
+    if (this.configService.get('nodeEnv') !== 'test') {
+      this.logger.error('WebSocket exception occurred', exception);
+    }
 
     if (exception instanceof WsException) {
       client.emit('error', {

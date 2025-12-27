@@ -1,8 +1,25 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { WsAuthGuard } from './ws-auth.guard';
+
+// Mock the Logger to prevent console output during tests
+const mockLogger = {
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+};
+
+jest.mock('@nestjs/common', () => {
+  const actual = jest.requireActual('@nestjs/common');
+  return {
+    ...actual,
+    Logger: jest.fn().mockImplementation(() => mockLogger),
+  };
+});
 
 describe('WsAuthGuard', () => {
   let guard: WsAuthGuard;

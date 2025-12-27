@@ -7,6 +7,13 @@ export {
   UserRegistrationUserDto,
 } from './auth-response.dto';
 export {
+  CursorPosition,
+  CursorUpdateDto,
+  FileChangeDto,
+  JoinWorkspaceDto,
+  UserPresenceDto,
+} from './collaboration-event.dto';
+export {
   CollaborationHistoryResponseDto,
   UserActivityResponseDto,
 } from './collaboration-history.dto';

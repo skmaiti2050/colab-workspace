@@ -43,13 +43,13 @@ describe('CollaborationGateway', () => {
   });
 
   describe('afterInit', () => {
-    it('should initialize WebSocket gateway', () => {
+    it('should initialize WebSocket gateway', async () => {
       const logSpy = jest.spyOn(gateway['logger'], 'log');
       const mockServer = {
         adapter: jest.fn(),
       } as any;
 
-      gateway.afterInit(mockServer);
+      await gateway.afterInit(mockServer);
 
       expect(logSpy).toHaveBeenCalledWith('WebSocket Gateway initialized');
     });
