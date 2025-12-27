@@ -65,7 +65,7 @@ export class User {
   @BeforeInsert()
   @BeforeUpdate()
   async hashPassword(): Promise<void> {
-    if (this.password) {
+    if (this.password && !this.passwordHash) {
       const saltRounds = 12;
       this.passwordHash = await bcrypt.hash(this.password, saltRounds);
       delete this.password;
@@ -79,9 +79,5 @@ export class User {
   static async hashPassword(password: string): Promise<string> {
     const saltRounds = 12;
     return bcrypt.hash(password, saltRounds);
-  }
-
-  static async comparePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(plainPassword, hashedPassword);
   }
 }

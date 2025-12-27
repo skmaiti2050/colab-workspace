@@ -39,16 +39,5 @@ describe('User Entity', () => {
       expect(hashedPassword).not.toBe(password);
       expect(hashedPassword.length).toBeGreaterThan(50);
     });
-
-    it('should compare password using static method', async () => {
-      const password = 'TestPassword123!';
-      const hashedPassword = await User.hashPassword(password);
-
-      const isMatch = await User.comparePassword(password, hashedPassword);
-      expect(isMatch).toBe(true);
-
-      const isNotMatch = await User.comparePassword('WrongPassword', hashedPassword);
-      expect(isNotMatch).toBe(false);
-    });
   });
 });

@@ -12,6 +12,11 @@ export const environmentSchema = z.object({
   DATABASE_NAME: z.string().default('collaborative_workspace'),
   DATABASE_SSL: z.coerce.boolean().default(false),
 
+  JWT_SECRET: z.string().default('your-super-secret-jwt-key-change-in-production'),
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_SECRET: z.string().default('your-super-secret-refresh-key-change-in-production'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+
   THROTTLE_TTL: z.coerce.number().default(60),
   THROTTLE_LIMIT: z.coerce.number().default(10),
 
@@ -50,6 +55,12 @@ export default () => {
       password: env.DATABASE_PASSWORD,
       name: env.DATABASE_NAME,
       ssl: env.DATABASE_SSL,
+    },
+    jwt: {
+      secret: env.JWT_SECRET,
+      expiresIn: env.JWT_EXPIRES_IN,
+      refreshSecret: env.JWT_REFRESH_SECRET,
+      refreshExpiresIn: env.JWT_REFRESH_EXPIRES_IN,
     },
 
     throttle: {
