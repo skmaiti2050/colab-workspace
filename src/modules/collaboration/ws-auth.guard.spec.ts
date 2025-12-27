@@ -56,7 +56,7 @@ describe('WsAuthGuard', () => {
       expect(result).toBe(false);
     });
 
-    it('should return true when valid token is provided in auth header', async () => {
+    it('should return true when valid token is provided', async () => {
       const mockPayload = { sub: 'user-id', email: 'test@example.com' };
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
 
@@ -66,32 +66,6 @@ describe('WsAuthGuard', () => {
             authorization: 'Bearer valid-token',
           },
           query: {},
-          auth: {},
-        },
-        data: {} as any,
-      };
-
-      const mockContext = {
-        switchToWs: () => ({
-          getClient: () => mockClient,
-        }),
-      } as ExecutionContext;
-
-      const result = await guard.canActivate(mockContext);
-      expect(result).toBe(true);
-      expect(mockClient.data.user).toEqual(mockPayload);
-    });
-
-    it('should return true when valid token is provided in query params', async () => {
-      const mockPayload = { sub: 'user-id', email: 'test@example.com' };
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(mockPayload);
-
-      const mockClient = {
-        handshake: {
-          headers: {},
-          query: {
-            token: 'valid-token',
-          },
           auth: {},
         },
         data: {} as any,

@@ -1,16 +1,33 @@
 import { ConfigService } from '@nestjs/config';
 import { RedisOptions } from 'ioredis';
 
-export const createRedisConfig = (configService: ConfigService): RedisOptions | string => {
+export const createRedisConfig = (configService: ConfigService): RedisOptions | string | null => {
   const redisUrl = configService.get<string>('redis.url');
+  const nodeEnv = configService.get<string>('nodeEnv');
+
+  if (nodeEnv === 'development' && !redisUrl) {
+    const host = configService.get<string>('redis.host');
+    const port = configService.get<number>('redis.port');
+
+    if (!host || !port) {
+      return null;
+    }
+  }
 
   if (redisUrl) {
     return redisUrl;
   }
 
+  const host = configService.get<string>('redis.host');
+  const port = configService.get<number>('redis.port');
+
+  if (!host || !port) {
+    return null;
+  }
+
   const config: RedisOptions = {
-    host: configService.get<string>('redis.host'),
-    port: configService.get<number>('redis.port'),
+    host,
+    port,
     connectionName: 'default',
     maxRetriesPerRequest: 3,
     lazyConnect: true,

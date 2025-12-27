@@ -70,17 +70,34 @@ export class CollaborationGateway
     try {
       const redisConfig = createRedisConfig(this.configService);
 
+      if (!redisConfig) {
+        this.logger.log(
+          'No Redis configuration provided - WebSocket running in single-instance mode',
+        );
+        return;
+      }
+
       this.redisClient =
         typeof redisConfig === 'string' ? new Redis(redisConfig) : new Redis(redisConfig);
       this.redisSubscriber =
         typeof redisConfig === 'string' ? new Redis(redisConfig) : new Redis(redisConfig);
 
       this.redisClient.on('error', (error) => {
-        this.logger.error('Redis client error:', error);
+        this.logger.error('Redis client error:', error.message);
+        if (this.configService.get('nodeEnv') === 'development') {
+          this.logger.warn(
+            'Redis connection failed in development - WebSocket will work without scaling',
+          );
+        }
       });
 
       this.redisSubscriber.on('error', (error) => {
-        this.logger.error('Redis subscriber error:', error);
+        this.logger.error('Redis subscriber error:', error.message);
+        if (this.configService.get('nodeEnv') === 'development') {
+          this.logger.warn(
+            'Redis subscriber failed in development - WebSocket will work without scaling',
+          );
+        }
       });
 
       this.redisClient.on('connect', () => {
@@ -99,10 +116,19 @@ export class CollaborationGateway
         this.logger.log('Redis subscriber ready');
       });
 
-      const adapter = createAdapter(this.redisClient, this.redisSubscriber);
-
-      server.adapter(adapter);
-      this.logger.log('Redis adapter configured for WebSocket scaling');
+      this.redisClient
+        .ping()
+        .then(() => {
+          const adapter = createAdapter(this.redisClient, this.redisSubscriber);
+          server.adapter(adapter);
+          this.logger.log('Redis adapter configured for WebSocket scaling');
+        })
+        .catch((error) => {
+          this.logger.warn('Redis ping failed, continuing without Redis adapter:', error.message);
+          if (this.configService.get('nodeEnv') === 'development') {
+            this.logger.log('WebSocket will work in single-instance mode without Redis scaling');
+          }
+        });
     } catch (error) {
       this.logger.error('Failed to setup Redis adapter', error);
       if (this.configService.get('nodeEnv') === 'development') {
