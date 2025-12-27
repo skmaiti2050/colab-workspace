@@ -12,6 +12,7 @@ export {
   FileChangeDto,
   JoinWorkspaceDto,
   UserPresenceDto,
+  WorkspacePresenceDto,
 } from './collaboration-event.dto';
 export {
   CollaborationHistoryResponseDto,

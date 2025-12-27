@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CollaborationGateway } from './collaboration.gateway';
+import { PresenceService } from './presence.service';
 
 describe('CollaborationGateway', () => {
   let gateway: CollaborationGateway;
@@ -30,6 +31,24 @@ describe('CollaborationGateway', () => {
           provide: JwtService,
           useValue: {
             verifyAsync: jest.fn(),
+          },
+        },
+        {
+          provide: PresenceService,
+          useValue: {
+            addUserSession: jest.fn(),
+            removeUserSession: jest.fn().mockResolvedValue(null),
+            updateUserActivity: jest.fn(),
+            getWorkspacePresence: jest.fn().mockResolvedValue({
+              workspaceId: 'test-workspace',
+              activeUsers: [],
+              totalUsers: 0,
+              lastUpdated: new Date(),
+            }),
+            getUserSession: jest.fn().mockResolvedValue(null),
+            isUserActive: jest.fn().mockResolvedValue(false),
+            getTotalActiveUsers: jest.fn().mockResolvedValue(0),
+            cleanupExpiredSessions: jest.fn(),
           },
         },
       ],

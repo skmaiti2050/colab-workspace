@@ -15,6 +15,7 @@ import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { createRedisConfig } from '../../config/redis.config';
 import { JoinWorkspaceDto } from '../../dto';
+import { PresenceService, UserSession } from './presence.service';
 import { WsAuthGuard } from './ws-auth.guard';
 import { WsExceptionFilter } from './ws-exception.filter';
 
@@ -218,7 +219,10 @@ export class CollaborationGateway
   private redisSubscriber!: Redis;
   private eventService!: EventService;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly presenceService: PresenceService,
+  ) {
     this.eventService = new EventService(configService);
   }
 
@@ -358,8 +362,12 @@ export class CollaborationGateway
     try {
       this.logger.log(`Client disconnected: ${client.id}`);
 
-      if (client.data.workspaceId && client.data.user) {
-        await this.handleUserLeave(client);
+      // Remove user session and get session data
+      const session = await this.presenceService.removeUserSession(client.id);
+
+      if (session) {
+        // Broadcast user leave event if they were in a workspace
+        await this.handleUserLeave(client, session);
       }
     } catch (error) {
       this.logger.error('Error handling disconnect', error);
@@ -384,6 +392,19 @@ export class CollaborationGateway
       await client.join(`workspace:${workspaceId}`);
       client.data.workspaceId = workspaceId;
 
+      // Create user session for presence tracking
+      const userSession: UserSession = {
+        userId: user.sub,
+        username: user.email,
+        workspaceId,
+        socketId: client.id,
+        joinedAt: new Date(),
+        lastActivity: new Date(),
+      };
+
+      // Add session to presence service
+      await this.presenceService.addUserSession(userSession);
+
       const joinEvent: UserJoinEvent = {
         workspaceId,
         userId: user.sub,
@@ -402,8 +423,31 @@ export class CollaborationGateway
         timestamp: new Date(),
       });
 
+      // Get current workspace presence and send to the joining user
+      const workspacePresence = await this.presenceService.getWorkspacePresence(workspaceId);
+
       client.emit('workspace-joined', {
         workspaceId,
+        timestamp: new Date(),
+        activeUsers: workspacePresence.activeUsers.map((session) => ({
+          userId: session.userId,
+          username: session.username,
+          joinedAt: session.joinedAt,
+          lastActivity: session.lastActivity,
+        })),
+        totalUsers: workspacePresence.totalUsers,
+      });
+
+      // Broadcast updated presence to all workspace members
+      this.server.to(`workspace:${workspaceId}`).emit('presence-updated', {
+        workspaceId,
+        activeUsers: workspacePresence.activeUsers.map((session) => ({
+          userId: session.userId,
+          username: session.username,
+          joinedAt: session.joinedAt,
+          lastActivity: session.lastActivity,
+        })),
+        totalUsers: workspacePresence.totalUsers + 1, // Include the newly joined user
         timestamp: new Date(),
       });
 
@@ -417,39 +461,66 @@ export class CollaborationGateway
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('leave-workspace')
   async handleLeaveWorkspace(@ConnectedSocket() client: Socket) {
-    await this.handleUserLeave(client);
+    const session = await this.presenceService.getUserSession(client.id);
+    if (session) {
+      await this.handleUserLeave(client, session);
+    }
   }
 
-  private async handleUserLeave(client: Socket) {
+  private async handleUserLeave(client: Socket, session?: UserSession) {
     try {
-      const workspaceId = client.data.workspaceId;
-      const user = client.data.user;
+      let userSession = session;
 
-      if (workspaceId && user) {
-        await client.leave(`workspace:${workspaceId}`);
-
-        const leaveEvent: UserLeaveEvent = {
-          workspaceId,
-          userId: user.sub,
-          username: user.email,
-          timestamp: new Date(),
-        };
-
-        // Broadcast to local clients
-        client.to(`workspace:${workspaceId}`).emit('user-left', leaveEvent);
-
-        // Publish to Redis for cross-instance communication
-        await this.eventService.publishEvent('workspace-events', {
-          type: 'user-leave',
-          workspaceId,
-          data: leaveEvent,
-          timestamp: new Date(),
-        });
-
-        delete client.data.workspaceId;
-
-        this.logger.log(`User ${user.email} left workspace ${workspaceId}`);
+      if (!userSession) {
+        const sessionData = await this.presenceService.getUserSession(client.id);
+        userSession = sessionData || undefined;
       }
+
+      if (!userSession) {
+        this.logger.debug(`No session found for client ${client.id}`);
+        return;
+      }
+
+      const { workspaceId, userId, username } = userSession;
+
+      await client.leave(`workspace:${workspaceId}`);
+
+      const leaveEvent: UserLeaveEvent = {
+        workspaceId,
+        userId,
+        username,
+        timestamp: new Date(),
+      };
+
+      // Broadcast to local clients
+      client.to(`workspace:${workspaceId}`).emit('user-left', leaveEvent);
+
+      // Publish to Redis for cross-instance communication
+      await this.eventService.publishEvent('workspace-events', {
+        type: 'user-leave',
+        workspaceId,
+        data: leaveEvent,
+        timestamp: new Date(),
+      });
+
+      // Get updated workspace presence and broadcast to remaining users
+      const workspacePresence = await this.presenceService.getWorkspacePresence(workspaceId);
+
+      this.server.to(`workspace:${workspaceId}`).emit('presence-updated', {
+        workspaceId,
+        activeUsers: workspacePresence.activeUsers.map((session) => ({
+          userId: session.userId,
+          username: session.username,
+          joinedAt: session.joinedAt,
+          lastActivity: session.lastActivity,
+        })),
+        totalUsers: workspacePresence.totalUsers,
+        timestamp: new Date(),
+      });
+
+      delete client.data.workspaceId;
+
+      this.logger.log(`User ${username} left workspace ${workspaceId}`);
     } catch (error) {
       this.logger.error('Error handling user leave', error);
     }
@@ -466,6 +537,9 @@ export class CollaborationGateway
         client.emit('error', { message: 'Not joined to this workspace' });
         return;
       }
+
+      // Update user activity
+      await this.presenceService.updateUserActivity(client.id);
 
       const fileChangeEvent: FileChangeEvent = {
         ...data,
@@ -506,6 +580,9 @@ export class CollaborationGateway
         return;
       }
 
+      // Update user activity
+      await this.presenceService.updateUserActivity(client.id);
+
       const cursorUpdateEvent: CursorUpdateEvent = {
         ...data,
         userId: user.sub,
@@ -530,7 +607,50 @@ export class CollaborationGateway
     }
   }
 
-  /** Broadcast file change event to workspace members */
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('get-workspace-presence')
+  async handleGetWorkspacePresence(@ConnectedSocket() client: Socket) {
+    try {
+      const workspaceId = client.data.workspaceId;
+
+      if (!workspaceId) {
+        client.emit('error', { message: 'Not joined to any workspace' });
+        return;
+      }
+
+      const workspacePresence = await this.presenceService.getWorkspacePresence(workspaceId);
+
+      client.emit('workspace-presence', {
+        workspaceId,
+        activeUsers: workspacePresence.activeUsers.map((session) => ({
+          userId: session.userId,
+          username: session.username,
+          joinedAt: session.joinedAt,
+          lastActivity: session.lastActivity,
+        })),
+        totalUsers: workspacePresence.totalUsers,
+        timestamp: new Date(),
+      });
+
+      this.logger.debug(`Workspace presence sent to user in workspace ${workspaceId}`);
+    } catch (error) {
+      this.logger.error('Error getting workspace presence', error);
+      client.emit('error', { message: 'Failed to get workspace presence' });
+    }
+  }
+
+  @UseGuards(WsAuthGuard)
+  @SubscribeMessage('ping')
+  async handlePing(@ConnectedSocket() client: Socket) {
+    try {
+      // Update user activity on ping
+      await this.presenceService.updateUserActivity(client.id);
+
+      client.emit('pong', { timestamp: new Date() });
+    } catch (error) {
+      this.logger.error('Error handling ping', error);
+    }
+  }
   async broadcastFileChange(workspaceId: string, event: FileChangeEvent) {
     try {
       const fileChangeEvent: FileChangeEvent = {
@@ -583,11 +703,26 @@ export class CollaborationGateway
   /** Get connected users count for a workspace */
   async getWorkspaceConnectedUsers(workspaceId: string): Promise<number> {
     try {
-      const room = this.server.sockets.adapter.rooms.get(`workspace:${workspaceId}`);
-      return room ? room.size : 0;
+      const workspacePresence = await this.presenceService.getWorkspacePresence(workspaceId);
+      return workspacePresence.totalUsers;
     } catch (error) {
       this.logger.error('Error getting workspace connected users', error);
       return 0;
+    }
+  }
+
+  /** Get detailed workspace presence information */
+  async getWorkspacePresenceInfo(workspaceId: string) {
+    try {
+      return await this.presenceService.getWorkspacePresence(workspaceId);
+    } catch (error) {
+      this.logger.error('Error getting workspace presence info', error);
+      return {
+        workspaceId,
+        activeUsers: [],
+        totalUsers: 0,
+        lastUpdated: new Date(),
+      };
     }
   }
 

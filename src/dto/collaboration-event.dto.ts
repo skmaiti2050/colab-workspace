@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsNotEmpty,
   IsNumber,
@@ -120,7 +121,47 @@ export class UserPresenceDto {
   username!: string;
 
   @ApiProperty({
-    description: 'Timestamp of the event',
+    description: 'Timestamp when user joined',
+    example: '2025-01-01T00:00:00.000Z',
+  })
+  @IsDateString()
+  joinedAt!: Date;
+
+  @ApiProperty({
+    description: 'Timestamp of last activity',
+    example: '2025-01-01T00:00:00.000Z',
+  })
+  @IsDateString()
+  lastActivity!: Date;
+}
+
+export class WorkspacePresenceDto {
+  @ApiProperty({
+    description: 'Workspace ID',
+    example: '2204e384-f55a-49d8-920d-8fc9c8bb124f',
+  })
+  @IsUUID()
+  @IsNotEmpty()
+  workspaceId!: string;
+
+  @ApiProperty({
+    description: 'List of active users in the workspace',
+    type: [UserPresenceDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UserPresenceDto)
+  activeUsers!: UserPresenceDto[];
+
+  @ApiProperty({
+    description: 'Total number of active users',
+    example: 3,
+  })
+  @IsNumber()
+  totalUsers!: number;
+
+  @ApiProperty({
+    description: 'Timestamp when presence was last updated',
     example: '2025-01-01T00:00:00.000Z',
   })
   @IsDateString()
