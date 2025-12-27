@@ -23,6 +23,7 @@ export { CreateProjectDto } from './create-project.dto';
 export { CreateUserDto } from './create-user.dto';
 export { CreateWorkspaceDto } from './create-workspace.dto';
 export { InviteUserDto } from './invite-user.dto';
+export { JobResponseDto } from './job-response.dto';
 export { LoginDto } from './login.dto';
 export {
   CollaborationEventDto,
@@ -40,6 +41,7 @@ export {
 } from './project-response.dto';
 export { RefreshTokenDto } from './refresh-token.dto';
 export { RegisterDto } from './register.dto';
+export { SubmitJobDto } from './submit-job.dto';
 export { UpdateMetadataDto } from './update-metadata.dto';
 export { UpdateProjectDto } from './update-project.dto';
 export { UpdateRoleDto } from './update-role.dto';
