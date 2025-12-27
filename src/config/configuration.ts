@@ -12,6 +12,12 @@ export const environmentSchema = z.object({
   DATABASE_NAME: z.string().default('collaborative_workspace'),
   DATABASE_SSL: z.coerce.boolean().default(false),
 
+  REDIS_URL: z.string().optional(),
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().default(6379),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.coerce.number().optional().default(0),
+
   JWT_SECRET: z.string().default('your-super-secret-jwt-key-change-in-production'),
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().default('your-super-secret-refresh-key-change-in-production'),
@@ -21,6 +27,9 @@ export const environmentSchema = z.object({
   THROTTLE_LIMIT: z.coerce.number().default(10),
 
   CORS_ORIGIN: z.string().default('*'),
+
+  WEBSOCKET_PORT: z.coerce.number().optional(),
+  WEBSOCKET_CORS_ORIGIN: z.string().default('*'),
 
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 });
@@ -56,6 +65,15 @@ export default () => {
       name: env.DATABASE_NAME,
       ssl: env.DATABASE_SSL,
     },
+
+    redis: {
+      url: env.REDIS_URL,
+      host: env.REDIS_HOST,
+      port: env.REDIS_PORT,
+      password: env.REDIS_PASSWORD,
+      db: env.REDIS_DB,
+    },
+
     jwt: {
       secret: env.JWT_SECRET,
       expiresIn: env.JWT_EXPIRES_IN,
@@ -70,6 +88,13 @@ export default () => {
 
     cors: {
       origin: env.CORS_ORIGIN,
+    },
+
+    websocket: {
+      port: env.WEBSOCKET_PORT,
+      cors: {
+        origin: env.WEBSOCKET_CORS_ORIGIN,
+      },
     },
 
     logging: {
