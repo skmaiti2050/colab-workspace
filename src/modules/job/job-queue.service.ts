@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bull';
 import { JobType } from '../../entities';
-import { JOB_QUEUES } from './job-queue.config';
+import { JOB_CONFIGS, JOB_QUEUES } from './job-queue.config';
 
 export interface JobData {
   jobId: string;
@@ -24,7 +24,7 @@ export class JobQueueService {
     private readonly workspaceExportQueue: Queue<JobData>,
   ) {}
 
-  /** Add job to appropriate queue based on type */
+  /** Add job to appropriate queue based on type with job-specific configuration */
   async addJob(jobData: JobData): Promise<void> {
     const { type, jobId } = jobData;
 
@@ -35,21 +35,21 @@ export class JobQueueService {
         case JobType.CODE_EXECUTION:
           await this.codeExecutionQueue.add('execute-code', jobData, {
             jobId,
-            priority: 1,
+            ...JOB_CONFIGS[JOB_QUEUES.CODE_EXECUTION],
           });
           queueName = 'code execution';
           break;
         case JobType.FILE_PROCESSING:
           await this.fileProcessingQueue.add('process-file', jobData, {
             jobId,
-            priority: 2,
+            ...JOB_CONFIGS[JOB_QUEUES.FILE_PROCESSING],
           });
           queueName = 'file processing';
           break;
         case JobType.WORKSPACE_EXPORT:
           await this.workspaceExportQueue.add('export-workspace', jobData, {
             jobId,
-            priority: 3,
+            ...JOB_CONFIGS[JOB_QUEUES.WORKSPACE_EXPORT],
           });
           queueName = 'workspace export';
           break;
@@ -57,7 +57,7 @@ export class JobQueueService {
           throw new Error(`Unknown job type: ${String(type)}`);
       }
 
-      this.logger.log(`Job ${jobId} of type ${queueName} added to queue`);
+      this.logger.log(`Job ${jobId} of type ${queueName} added to queue with retry configuration`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn(
@@ -92,6 +92,27 @@ export class JobQueueService {
     }
   }
 
+  /** Get detailed queue information including retry statistics */
+  async getDetailedQueueStats() {
+    try {
+      const [codeQueue, fileQueue, workspaceQueue] = await Promise.all([
+        this.getDetailedQueueInfo(this.codeExecutionQueue, 'code-execution'),
+        this.getDetailedQueueInfo(this.fileProcessingQueue, 'file-processing'),
+        this.getDetailedQueueInfo(this.workspaceExportQueue, 'workspace-export'),
+      ]);
+
+      return {
+        codeExecution: codeQueue,
+        fileProcessing: fileQueue,
+        workspaceExport: workspaceQueue,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to get detailed queue stats: ${errorMessage}`);
+      return null;
+    }
+  }
+
   private async getQueueCounts(queue: Queue) {
     try {
       const [waiting, active, completed, failed] = await Promise.all([
@@ -115,6 +136,51 @@ export class JobQueueService {
         active: 0,
         completed: 0,
         failed: 0,
+      };
+    }
+  }
+
+  private async getDetailedQueueInfo(queue: Queue, queueName: string) {
+    try {
+      const [waiting, active, completed, failed, delayed] = await Promise.all([
+        queue.getWaiting(),
+        queue.getActive(),
+        queue.getCompleted(),
+        queue.getFailed(),
+        queue.getDelayed(),
+      ]);
+
+      // Get retry statistics from failed jobs
+      const retryStats = failed.reduce(
+        (stats, job) => {
+          const attempts = job.attemptsMade || 0;
+          stats.totalRetries += attempts;
+          stats.maxRetries = Math.max(stats.maxRetries, attempts);
+          return stats;
+        },
+        { totalRetries: 0, maxRetries: 0 },
+      );
+
+      return {
+        name: queueName,
+        counts: {
+          waiting: waiting.length,
+          active: active.length,
+          completed: completed.length,
+          failed: failed.length,
+          delayed: delayed.length,
+        },
+        retryStats,
+        config: JOB_CONFIGS[queueName as keyof typeof JOB_CONFIGS],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to get detailed queue info for ${queueName}: ${errorMessage}`);
+      return {
+        name: queueName,
+        counts: { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 },
+        retryStats: { totalRetries: 0, maxRetries: 0 },
+        config: JOB_CONFIGS[queueName as keyof typeof JOB_CONFIGS],
       };
     }
   }

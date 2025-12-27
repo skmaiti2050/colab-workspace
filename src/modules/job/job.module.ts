@@ -6,6 +6,11 @@ import { JOB_QUEUES, JobQueueConfig } from './job-queue.config';
 import { JobQueueService } from './job-queue.service';
 import { JobController } from './job.controller';
 import { JobService } from './job.service';
+import {
+  CodeExecutionProcessor,
+  FileProcessingProcessor,
+  WorkspaceExportProcessor,
+} from './processors';
 
 @Module({
   imports: [
@@ -18,7 +23,13 @@ import { JobService } from './job.service';
     ),
   ],
   controllers: [JobController],
-  providers: [JobService, JobQueueService],
+  providers: [
+    JobService,
+    JobQueueService,
+    CodeExecutionProcessor,
+    FileProcessingProcessor,
+    WorkspaceExportProcessor,
+  ],
   exports: [JobService, JobQueueService],
 })
 export class JobModule {}
