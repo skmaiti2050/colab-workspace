@@ -71,9 +71,7 @@ describe('AuthService', () => {
 
       const result = await service.register(registerDto);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(userService.findByEmail).toHaveBeenCalledWith(registerDto.email);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(userService.create).toHaveBeenCalledWith(registerDto);
       expect(result).toEqual(mockUser);
     });

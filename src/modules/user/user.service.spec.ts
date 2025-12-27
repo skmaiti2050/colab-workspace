@@ -75,15 +75,14 @@ describe('UserService', () => {
 
       const result = await service.create(createUserDto);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(User.hashPassword).toHaveBeenCalledWith('plainPassword123');
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(repository.create).toHaveBeenCalledWith({
         email: 'test@example.com',
         name: 'Test User',
         passwordHash: 'hashedPassword123',
       });
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(repository.save).toHaveBeenCalledWith(mockUser);
       expect(result).toEqual(mockUser);
     });
@@ -113,7 +112,7 @@ describe('UserService', () => {
       const result = await service.findOne('713df652-8eeb-4a41-9ec9-4fe03942b77b');
 
       expect(result).toEqual(mockUser);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(repository.findOne).toHaveBeenCalledWith({
         where: { id: '713df652-8eeb-4a41-9ec9-4fe03942b77b' },
       });
