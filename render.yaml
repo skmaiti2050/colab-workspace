@@ -4,21 +4,47 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start:prod
+    buildCommand: npm ci && npm run build && npm run migration:run -- -d ormconfig.ts
+    startCommand: npm start
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      
+      # NeonDB PostgreSQL Configuration
       - key: DATABASE_URL
         sync: false
+      - key: DATABASE_SSL
+        value: true
+      
+      # Redis Cloud Configuration
+      - key: REDIS_URL
+        sync: false
+      
+      # JWT Configuration
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      
+      # Rate Limiting Configuration
       - key: THROTTLE_TTL
         value: 60
       - key: THROTTLE_LIMIT
         value: 100
+      
+      # CORS Configuration
       - key: CORS_ORIGIN
         value: '*'
+      - key: WEBSOCKET_CORS_ORIGIN
+        value: '*'
+      
+      # Logging Configuration
       - key: LOG_LEVEL
         value: info
