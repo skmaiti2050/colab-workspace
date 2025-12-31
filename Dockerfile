@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 RUN npm run build
 
-FROM node:24-alpine AS production
+FROM node:25-alpine AS production
 
 WORKDIR /app
 
@@ -32,7 +32,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 CMD ["node", "dist/main"]
 
-FROM node:24-alpine AS development
+FROM node:25-alpine AS development
 
 WORKDIR /app
 
