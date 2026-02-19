@@ -7,14 +7,16 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "dependabot[bot]"
-    assignees:
-      - "dependabot[bot]"
+    labels:
+      - "dependencies"
+      - "automated"
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
+    allow:
+      - dependency-type: "all"
+    rebase-strategy: "auto"
     groups:
       nestjs:
         patterns:
