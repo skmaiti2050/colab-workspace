@@ -144,7 +144,7 @@ export class WorkspaceExportProcessor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Export failed';
 
-      throw new Error(`Workspace export failed: ${errorMessage}`);
+      throw new Error(`Workspace export failed: ${errorMessage}`, { cause: error });
     }
   }
 

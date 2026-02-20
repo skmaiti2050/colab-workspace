@@ -152,7 +152,7 @@ export class FileProcessingProcessor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Processing failed';
 
-      throw new Error(`File processing failed: ${errorMessage}`);
+      throw new Error(`File processing failed: ${errorMessage}`, { cause: error });
     }
   }
 
