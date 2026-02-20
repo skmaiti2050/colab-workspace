@@ -6,7 +6,6 @@ import { FileProcessingProcessor } from './file-processing.processor';
 
 describe('FileProcessingProcessor', () => {
   let processor: FileProcessingProcessor;
-  let jobService: JobService;
 
   const mockJobService = {
     updateJobStatus: jest.fn(),
@@ -24,7 +23,6 @@ describe('FileProcessingProcessor', () => {
     }).compile();
 
     processor = module.get<FileProcessingProcessor>(FileProcessingProcessor);
-    jobService = module.get<JobService>(JobService);
 
     mockJobService.updateJobStatus.mockClear();
 
@@ -87,7 +85,9 @@ describe('FileProcessingProcessor', () => {
       await processor.handleFileProcessing(mockJob);
 
       // Process again, expect error due to idempotency check
-      await expect(processor.handleFileProcessing(mockJob)).rejects.toThrow('Job already processed');
+      await expect(processor.handleFileProcessing(mockJob)).rejects.toThrow(
+        'Job already processed',
+      );
 
       // Ensure the second attempt fails and updates status
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(

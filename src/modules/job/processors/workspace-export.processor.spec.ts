@@ -6,7 +6,6 @@ import { WorkspaceExportProcessor } from './workspace-export.processor';
 
 describe('WorkspaceExportProcessor', () => {
   let processor: WorkspaceExportProcessor;
-  let jobService: JobService;
 
   const mockJobService = {
     updateJobStatus: jest.fn(),
@@ -24,7 +23,6 @@ describe('WorkspaceExportProcessor', () => {
     }).compile();
 
     processor = module.get<WorkspaceExportProcessor>(WorkspaceExportProcessor);
-    jobService = module.get<JobService>(JobService);
 
     mockJobService.updateJobStatus.mockClear();
 
@@ -86,7 +84,9 @@ describe('WorkspaceExportProcessor', () => {
       await processor.handleWorkspaceExport(mockJob);
 
       // Process again, expect error due to idempotency check
-      await expect(processor.handleWorkspaceExport(mockJob)).rejects.toThrow('Job already processed');
+      await expect(processor.handleWorkspaceExport(mockJob)).rejects.toThrow(
+        'Job already processed',
+      );
 
       // Ensure the second attempt fails and updates status
       expect(mockJobService.updateJobStatus).toHaveBeenCalledWith(
