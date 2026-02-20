@@ -140,7 +140,7 @@ export class WorkspaceExportProcessor {
       await new Promise((resolve) => setTimeout(resolve, delay));
 
       // Simulate workspace export process
-      return this.performExport(exportData);
+      return await this.performExport(exportData);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Export failed';
 

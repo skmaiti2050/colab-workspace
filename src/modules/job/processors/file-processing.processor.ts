@@ -137,13 +137,13 @@ export class FileProcessingProcessor {
       // Simulate different processing scenarios
       switch (fileData.operation) {
         case 'compress':
-          return this.simulateCompression(fileData);
+          return await this.simulateCompression(fileData);
         case 'convert':
-          return this.simulateConversion(fileData);
+          return await this.simulateConversion(fileData);
         case 'analyze':
-          return this.simulateAnalysis(fileData);
+          return await this.simulateAnalysis(fileData);
         case 'validate':
-          return this.simulateValidation(fileData);
+          return await this.simulateValidation(fileData);
         default:
           throw new Error(
             `Processing not implemented for operation: ${String(fileData.operation)}`,
