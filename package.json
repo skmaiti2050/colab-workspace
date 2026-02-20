@@ -66,6 +66,11 @@
     "typeorm": "^0.3.28",
     "zod": "^4.3.6"
   },
+  "overrides": {
+    "minimatch": "^10.2.2",
+    "glob": "^13.0.0",
+    "test-exclude": "^7.0.1"
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
