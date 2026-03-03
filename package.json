@@ -69,7 +69,8 @@
   "overrides": {
     "minimatch": "^10.2.2",
     "glob": "^13.0.0",
-    "test-exclude": "^7.0.1"
+    "test-exclude": "^7.0.1",
+    "multer": "^2.1.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
@@ -80,11 +81,9 @@
     "@nestjs/schematics": "^11.0.9",
     "@nestjs/testing": "^11.1.14",
     "@types/cors": "^2.8.19",
-    "@types/ioredis": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.3.3",
     "@types/passport-jwt": "^4.0.1",
-    "@types/socket.io": "^3.0.2",
     "@types/supertest": "^7.2.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
