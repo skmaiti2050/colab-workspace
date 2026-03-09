@@ -75,7 +75,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
-    "@commitlint/types": "^20.4.0",
+    "@commitlint/types": "^20.4.3",
     "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.16",
     "@nestjs/schematics": "^11.0.9",
