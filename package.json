@@ -73,7 +73,7 @@
     "multer": "^2.1.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.4.2",
+    "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.4.3",
     "@commitlint/types": "^20.4.0",
     "@eslint/js": "^10.0.1",
